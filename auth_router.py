@@ -4,13 +4,14 @@ from sqlalchemy import create_engine, Column, Integer, String, Boolean
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from pydantic import BaseModel, EmailStr
 from passlib.context import CryptContext
-from jose import jwt
+from jose import jwt, JWTError
 import secrets
 import datetime
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 import os
 from dotenv import load_dotenv
 from fastapi.responses import RedirectResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 # -----------------------------
 # config
@@ -239,3 +240,28 @@ def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
   db.commit()
 
   return {"message": "password updated"}
+
+# -----------------------------
+# get current user
+# -----------------------------
+
+security = HTTPBearer()
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("user_id")
+        if not user_id:
+            raise HTTPException(401, "invalid token")
+    except JWTError:
+        raise HTTPException(401, "invalid token")
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(401, "user not found")
+    return user
+
+@router.get("/me")
+def me(current_user: User = Depends(get_current_user)):
+    return {"id": current_user.id, "email": current_user.email}
