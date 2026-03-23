@@ -7,9 +7,10 @@ import os
 app = FastAPI()
 app.include_router(router)
 
-# 개발서버 cors 허용
+# 프론트 cors 허용
 origins = [
-  "http://localhost:5173"
+  "http://localhost:5173",
+  "https://vagant.solmi.wiki"
 ]
 
 app.add_middleware(
