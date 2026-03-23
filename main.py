@@ -5,21 +5,19 @@ from auth_router import router
 import os
 
 app = FastAPI()
-app.include_router(router)
-
-# 프론트 cors 허용
-origins = [
-  "http://localhost:5173",
-  "https://vagant.solmi.wiki"
-]
 
 app.add_middleware(
   CORSMiddleware,
-  allow_origins=origins,
+  allow_origins=[
+    "http://localhost:5173",
+    "https://vagant.solmi.wiki"
+  ],
   allow_credentials=True,
   allow_methods=["*"],
   allow_headers=["*"],
 )
+
+app.include_router(router)
 
 # api
 @app.get("/api/hello")
