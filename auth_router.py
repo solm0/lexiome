@@ -12,6 +12,7 @@ import os
 from dotenv import load_dotenv
 from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from datetime import date
 
 # -----------------------------
 # config
@@ -56,6 +57,7 @@ class User(Base):
   email_verified = Column(Boolean, default=False)
   verify_token = Column(String, nullable=True)
   reset_token = Column(String, nullable=True)
+  cycle_start_date = Column(String, nullable=True)
 
 Base.metadata.create_all(engine)
 
@@ -142,7 +144,8 @@ async def signup(data: SignupRequest, db: Session = Depends(get_db)):
   user = User(
     email=data.email,
     password_hash=hash_password(data.password),
-    verify_token=token
+    verify_token=token,
+    cycle_start_date=None
   )
 
   db.add(user)
@@ -168,6 +171,9 @@ def verify_email(token: str, db: Session = Depends(get_db)):
 
   user.email_verified = True
   user.verify_token = None
+
+  if not user.cycle_start_date:
+    user.cycle_start_date = date.today().isoformat()
 
   db.commit()
 

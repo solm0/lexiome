@@ -10,7 +10,7 @@ app.add_middleware(
   CORSMiddleware,
   allow_origins=[
     "http://localhost:5173",
-    "https://vagant.solmi.wiki"
+    "https://lexiome.solmi.wiki"
   ],
   allow_credentials=True,
   allow_methods=["*"],
