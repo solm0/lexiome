@@ -6,6 +6,7 @@ import os
 from routers.today_router import router as today_router
 from routers.stt_router import router as stt_router
 from routers.hint_router import router as hint_router
+from routers.cloze_router import router as cloze_router
 
 app = FastAPI()
 
@@ -25,6 +26,7 @@ app.include_router(router)
 app.include_router(today_router)
 app.include_router(stt_router)
 app.include_router(hint_router)
+app.include_router(cloze_router)
 
 # static
 if os.path.exists("dist"):

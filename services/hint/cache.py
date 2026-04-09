@@ -1,7 +1,7 @@
 import os
 import json
 
-CACHE_DIR = "cache"
+CACHE_DIR = "cache/hint"
 
 
 def get_path(key: str) -> str:

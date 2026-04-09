@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
-from services.cache import exists, load, save
-from services.llm_hint import generate_sentences
-from services.validator import validate
+from services.hint.cache import exists, load, save
+from services.hint.llm_hint import generate_sentences
+from services.hint.validator import validate
 from services.singleflight import run_once
 
 router = APIRouter()
