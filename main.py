@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from auth_router import router
 import os
+from today_router import router as today_router
+from stt_router import router as stt_router
 
 app = FastAPI()
 
@@ -17,12 +19,10 @@ app.add_middleware(
   allow_headers=["*"],
 )
 
+# routers
 app.include_router(router)
-
-# api
-@app.get("/api/hello")
-def hello():
-  return {"message": "hello"}
+app.include_router(today_router)
+app.include_router(stt_router)
 
 # static
 if os.path.exists("dist"):
