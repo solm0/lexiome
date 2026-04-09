@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
 from datetime import date, datetime
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, UniqueConstraint
 from sqlalchemy.orm import declarative_base, Session
 import json
-from routers.auth_router import get_current_user, User, get_db
+from routers.auth_router import get_current_user, User, get_db, Base, engine
 import os
 
 router = APIRouter(prefix="/api")
@@ -14,8 +14,6 @@ DB_PATH = "user.db"
 # DB
 # -------------------------
 
-Base = declarative_base()
-
 class UserProgress(Base):
     __tablename__ = "user_progress"
 
@@ -25,6 +23,12 @@ class UserProgress(Base):
     poem_id = Column(Integer)
     line_id = Column(Integer)
     subline_index = Column(Integer)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "date"),
+    )
+
+Base.metadata.create_all(bind=engine)
 
 # -------------------------
 # 데이터 preload (서버 시작 시 실행된다고 가정)
@@ -155,8 +159,14 @@ def get_today_line(user: User, db: Session):
             line_id=current["line_id"],
             subline_index=current["subline_index"]
         )
-        db.add(progress)
-        db.commit()
+        existing = db.query(UserProgress).filter(
+            UserProgress.user_id == user.id,
+            UserProgress.date == today
+        ).first()
+
+        if not existing:
+            db.add(progress)
+            db.commit()
     
     all_progress = db.query(UserProgress).filter(
         UserProgress.user_id == user.id
