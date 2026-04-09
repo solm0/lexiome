@@ -3,7 +3,7 @@ from datetime import date, datetime
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import declarative_base, Session
 import json
-from auth_router import get_current_user, User, get_db
+from routers.auth_router import get_current_user, User, get_db
 import os
 
 router = APIRouter(prefix="/api")
@@ -30,7 +30,7 @@ class UserProgress(Base):
 # 데이터 preload (서버 시작 시 실행된다고 가정)
 # -------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # backend/
-DATA_DIR = os.path.join(BASE_DIR, "data")
+DATA_DIR = os.path.join(BASE_DIR, "../data")
 
 with open(os.path.join(DATA_DIR, "poems_final.json"), encoding="utf-8") as f:
     POEMS_DATA = json.load(f)

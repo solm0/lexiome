@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from auth_router import router
+from routers.auth_router import router
 import os
-from today_router import router as today_router
-from stt_router import router as stt_router
+from routers.today_router import router as today_router
+from routers.stt_router import router as stt_router
+from routers.hint_router import router as hint_router
 
 app = FastAPI()
 
@@ -23,6 +24,7 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(today_router)
 app.include_router(stt_router)
+app.include_router(hint_router)
 
 # static
 if os.path.exists("dist"):
