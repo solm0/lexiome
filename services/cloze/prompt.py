@@ -12,7 +12,7 @@ RULES:
 3. Choose ONE REAL word from the sentence (NOT the target lemma).
 4. Replace that word with <...> using the EXACT original surface form.
 
-❗ DO NOT write placeholders like <word>, <noun>, <something>.
+❗ DO NOT write placeholders like <word>, <noun>, <something>, <...>.
 ❗ The text inside <> MUST be an actual word from the sentence.
 
 Example:
@@ -30,6 +30,11 @@ NOT:
    - semantically wrong in context
 
 7. Output JSON only.
+
+8. Across ALL generated items:
+   - sentences must be structurally different
+   - do not reuse the same lemma as blank word
+   - do not reuse the same sentence template
 
 FORMAT:
 {{

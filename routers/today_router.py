@@ -1,14 +1,13 @@
 from fastapi import APIRouter, Depends
 from datetime import date, datetime
 from sqlalchemy import Column, Integer, String, UniqueConstraint
-from sqlalchemy.orm import declarative_base, Session
+from sqlalchemy.orm import Session
 import json
 from routers.auth_router import get_current_user, User, get_db, Base, engine
 import os
+from collections import defaultdict
 
 router = APIRouter(prefix="/api")
-
-DB_PATH = "user.db"
 
 # -------------------------
 # DB
@@ -31,15 +30,13 @@ class UserProgress(Base):
 Base.metadata.create_all(bind=engine)
 
 # -------------------------
-# 데이터 preload (서버 시작 시 실행된다고 가정)
+# DATA LOAD
 # -------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # backend/
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "../data")
 
 with open(os.path.join(DATA_DIR, "poems_final.json"), encoding="utf-8") as f:
-    POEMS_DATA = json.load(f)
-
-with open("data/poems_final.json", encoding="utf-8") as f:
     POEMS_DATA = json.load(f)
     POEMS = POEMS_DATA["poems"]
     BINS = POEMS_DATA["bins"]
@@ -47,38 +44,35 @@ with open("data/poems_final.json", encoding="utf-8") as f:
 with open("data/lines.json", encoding="utf-8") as f:
     LINES = json.load(f)
 
-# poem_id → poem
 poem_map = {p["poem_id"]: p for p in POEMS}
 
-# poem_id → sorted lines
 lines_by_poem = {}
-index_map = {}  # (poem_id, line_id, subline_index) → idx
+index_map = {}
 
 for line in LINES:
     pid = line["poem_id"]
     lines_by_poem.setdefault(pid, []).append(line)
 
 for pid, lines in lines_by_poem.items():
-    sorted_lines = sorted(
-        lines,
-        key=lambda x: (x["complexity"], x["line_id"])
-    )
+    sorted_lines = sorted(lines, key=lambda x: (x["complexity"], x["line_id"]))
     lines_by_poem[pid] = sorted_lines
 
     for idx, l in enumerate(sorted_lines):
-        key = (pid, l["line_id"], l["subline_index"])
-        index_map[key] = idx
+        index_map[(pid, l["line_id"], l["subline_index"])] = idx
+
 
 # -------------------------
-# helper
+# helpers
 # -------------------------
 
 def get_today():
     return date.today().isoformat()
 
+
 def get_week_index(cycle_start_date: str):
     d0 = datetime.fromisoformat(cycle_start_date).date()
     return (date.today() - d0).days // 7
+
 
 def pick_poem(user_id: int, week_index: int):
     seed = hash(f"{user_id}_{week_index}")
@@ -86,19 +80,94 @@ def pick_poem(user_id: int, week_index: int):
     poem = bin0[seed % len(bin0)]
     return poem["poem_id"]
 
+
+def build_history(db: Session, user_id: int):
+    all_progress = (
+        db.query(UserProgress)
+        .filter(UserProgress.user_id == user_id)
+        .order_by(UserProgress.date.asc())
+        .all()
+    )
+
+    history = []
+
+    for p in all_progress:
+        sorted_lines = lines_by_poem[p.poem_id]
+
+        current = next(
+            l for l in sorted_lines
+            if l["line_id"] == p.line_id and l["subline_index"] == p.subline_index
+        )
+
+        lines = [current]
+
+        if len(current.get("lemmas", [])) == 1:
+            next_line = next(
+                (l for l in sorted_lines if l["line_id"] == current["line_id"] + 1),
+                None
+            )
+            if next_line:
+                lines.append(next_line)
+
+        history.append({
+            "date": p.date,
+            "poem_id": p.poem_id,
+            "lines": lines
+        })
+
+    return history
+
+def build_history_grouped(db: Session, user_id: int):
+    all_progress = (
+        db.query(UserProgress)
+        .filter(UserProgress.user_id == user_id)
+        .order_by(UserProgress.date.asc())
+        .all()
+    )
+
+    grouped = defaultdict(list)
+
+    for p in all_progress:
+        grouped[p.poem_id].append(p)
+
+    result = []
+
+    for poem_id, progresses in grouped.items():
+        poem = poem_map[poem_id]
+
+        lines = []
+        for p in progresses:
+            lines.append({
+                "date": p.date,
+                "line_id": p.line_id,
+                "subline_index": p.subline_index
+            })
+
+        result.append({
+            "poem_id": poem_id,
+            "title": poem["title"],
+            "author": poem["author"],
+            "lines": lines
+        })
+
+    return result
+
 # -------------------------
 # core logic
 # -------------------------
 
 def get_today_line(user: User, db: Session):
-
     today = date.today().isoformat()
 
     # 1. 오늘 기록
-    existing = db.query(UserProgress).filter(
-        UserProgress.user_id == user.id,
-        UserProgress.date == today
-    ).first()
+    existing = (
+        db.query(UserProgress)
+        .filter(
+            UserProgress.user_id == user.id,
+            UserProgress.date == today
+        )
+        .first()
+    )
 
     if existing:
         poem_id = existing.poem_id
@@ -120,9 +189,12 @@ def get_today_line(user: User, db: Session):
         sorted_lines = lines_by_poem[poem_id]
 
         # 4. 이전 progress
-        prev = db.query(UserProgress).filter(
-            UserProgress.user_id == user.id
-        ).order_by(UserProgress.date.desc()).first()
+        prev = (
+            db.query(UserProgress)
+            .filter(UserProgress.user_id == user.id)
+            .order_by(UserProgress.date.desc())
+            .first()
+        )
 
         if not prev:
             current = sorted_lines[0]
@@ -131,11 +203,14 @@ def get_today_line(user: User, db: Session):
             key = (prev.poem_id, prev.line_id, prev.subline_index)
             idx = index_map.get(key, 0)
 
-            next_sub = None
-            for l in sorted_lines:
-                if l["line_id"] == prev.line_id and l["subline_index"] == prev.subline_index + 1:
-                    next_sub = l
-                    break
+            next_sub = next(
+                (
+                    l for l in sorted_lines
+                    if l["line_id"] == prev.line_id
+                    and l["subline_index"] == prev.subline_index + 1
+                ),
+                None
+            )
 
             if next_sub:
                 current = next_sub
@@ -150,7 +225,6 @@ def get_today_line(user: User, db: Session):
                     poem_id = pick_poem(user.id, 0)
                     sorted_lines = lines_by_poem[poem_id]
                     current = sorted_lines[0]
-
         # 5. 저장
         progress = UserProgress(
             user_id=user.id,
@@ -159,56 +233,33 @@ def get_today_line(user: User, db: Session):
             line_id=current["line_id"],
             subline_index=current["subline_index"]
         )
-        existing = db.query(UserProgress).filter(
-            UserProgress.user_id == user.id,
-            UserProgress.date == today
-        ).first()
 
-        if not existing:
-            db.add(progress)
-            db.commit()
-    
-    all_progress = db.query(UserProgress).filter(
-        UserProgress.user_id == user.id
-    ).order_by(UserProgress.date.asc()).all()
-
-    history = []
-
-    for p in all_progress:
-        poem_id = p.poem_id
-        sorted_lines = lines_by_poem[poem_id]
-
-        current = next(
-            l for l in sorted_lines
-            if l["line_id"] == p.line_id and l["subline_index"] == p.subline_index
-        )
-
-        lines = [current]
-
-        if len(current["lemmas"]) == 1:
-            next_line = next(
-                (l for l in sorted_lines if l["line_id"] == current["line_id"] + 1),
-                None
-            )
-            if next_line:
-                lines.append(next_line)
-
-        history.append({
-            "date": p.date,
-            "lines": lines
-        })
+        db.add(progress)
+        db.commit()
 
     return {
         "poem": poem_map[poem_id],
-        "history": history
+        "current": current,
+        "history": build_history(db, user.id)
     }
 
+
 # -------------------------
-# API
+# APIs
 # -------------------------
 
 @router.get("/today")
-def today(current_user: User = Depends(get_current_user),
-          db: Session = Depends(get_db)):
-
+def today(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     return get_today_line(current_user, db)
+
+@router.get("/history")
+def history(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return {
+        "history": build_history_grouped(db, current_user.id)
+    }

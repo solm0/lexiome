@@ -64,10 +64,21 @@ def get_kwic(lemma_key: str):
     if not data:
         return []
 
-    top_lines = data.get("top_lines", [])[:10]
+    top_lines = data.get("top_lines", [])
+    n = len(top_lines)
+
+    if n == 0:
+        return []
+
+    k = min(10, n)
 
     result = []
-    for lid in top_lines:
+    step = n / k
+
+    for i in range(k):
+        idx = int(i * step)
+        lid = top_lines[idx]
+
         line = line_map.get(lid)
         if not line:
             continue
