@@ -1,7 +1,7 @@
 import os
 import json
 
-CACHE_DIR = "cache/expansion"
+CACHE_DIR = "../data/cache/expansion"
 
 
 def get_path(key: str) -> str:
