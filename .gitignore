@@ -8,6 +8,5 @@ dist/
 
 .env
 
-/data
 /models
 *.db

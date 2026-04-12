@@ -34,14 +34,14 @@ Base.metadata.create_all(bind=engine)
 # -------------------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "../data")
+DATA_DIR = os.path.join(BASE_DIR, "../../data/corpus")
 
 with open(os.path.join(DATA_DIR, "poems_final.json"), encoding="utf-8") as f:
     POEMS_DATA = json.load(f)
     POEMS = POEMS_DATA["poems"]
     BINS = POEMS_DATA["bins"]
 
-with open("data/lines.json", encoding="utf-8") as f:
+with open(os.path.join(DATA_DIR, "lines.json"), encoding="utf-8") as f:
     LINES = json.load(f)
 
 poem_map = {p["poem_id"]: p for p in POEMS}
