@@ -4,8 +4,7 @@ from services.singleflight import run_once
 from openai import OpenAI
 import os
 
-router = APIRouter()
-
+router = APIRouter(prefix="/api")
 
 # LLM wrapper (기존 방식 그대로 유지)
 async def llm(prompt: str) -> str:

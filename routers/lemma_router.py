@@ -3,11 +3,11 @@ import json
 import os
 
 from services.hint.cache import exists, load, save
-from services.hint.llm_hint import generate_sentences
+from services.hint.service import generate_sentences
 from services.hint.validator import validate
 from services.singleflight import run_once
 
-router = APIRouter()
+router = APIRouter(prefix="/api")
 
 # -------------------------
 # preload

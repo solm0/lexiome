@@ -1,6 +1,6 @@
 import json, os
 
-CACHE_DIR = "cache/cloze"
+CACHE_DIR = "../data/cache/cloze"
 
 def _path(key):
     return f"{CACHE_DIR}/{key}.json"
